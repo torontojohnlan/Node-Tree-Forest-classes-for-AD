@@ -1,4 +1,4 @@
-using module  ./class-JohnAD-v2.psm1
+using module  ./class-JohnAD.psm1
 
 <#
 # This script provides 4 classes, 
