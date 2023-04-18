@@ -15,8 +15,8 @@
         - adds short group name/domain info to output
         - buildig loops as special trees. It's now part of forest constructor instead of a separate call to [SCC]::getSCCs
 #>
-using module  ".\class-JohnAD-v2.psm1"
-using module  ".\class-groupTree-v2.psm1"
+using module  ".\class-JohnAD.psm1"
+using module  ".\class-groupTree.psm1"
 
 #region SCC class
 class SCC{ # This class is used to identify loops. Not for storing any info for later use
