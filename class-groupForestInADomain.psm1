@@ -14,6 +14,11 @@
     v2: 
         - adds short group name/domain info to output
         - buildig loops as special trees. It's now part of forest constructor instead of a separate call to [SCC]::getSCCs
+    v2.1
+        - node.children populating should not be done for all groups we pull from AD. Many members are non-group type therefor
+          waste of time. Move populating task to where "get-aduser child" has been done and we know it's a group
+    v3 (not done in this branch - please see V3 folder): Further abstract node/tree classes by removing any AD-specific codes
+        out of them. Creata new inheritated classes for AD (group:node, groupTree:Tree,groupLoop:Loop)
 #>
 using module  ".\class-JohnAD.psm1"
 using module  ".\class-groupTree.psm1"
@@ -169,27 +174,14 @@ class ForestOfGroupTrees{ # "forest in a computer graph sense. Collection of tre
         $this.groupObjCategoryString="CN=Group,CN=Schema,CN=Configuration,"+[ADext]::fqdn2dn($domainObj.forest)
         $filter="(&(!(name=Domain Users))(!(name=domain computers))(!(name=Users))(objectCategory="+ ($this.groupObjCategoryString) + "))"
         write-host "[Info] Retrieving all groups from $domainFQDN" -ForegroundColor DarkGreen
-        $groups= get-adobject -ldapfilter $filter -properties samAccountName,enabled,member,memberof -server ([ADext]::dctable[$domainFQDN])
+        $groups= get-adobject -ldapfilter $filter -properties samAccountName,member,memberof -server ([ADext]::dctable[$domainFQDN])
         #endregion read AD
-        foreach($group in $groups){  #build priliminary $loopCandidates
-            $groupInfo=[PSCustomObject]@{
-                domain = $domainObj.NetBIOSName
-                ID = $group.samAccountName
-                members = @()
-            }
-            foreach($memberDN in $group.member){
-                $memberNode=[PSCustomObject]@{
-                    DN=$memberDN
-                    domain=""  # will be populated later after candidate list is truly trimmed to have circular nesting only
-                    ID=""
-                    Enabled = $true
-                }
-                $groupInfo.members += $memberNode
-            }
-            $loopCandidates[$group.distinguishedName]=$groupInfo
+        #$noneTreeNodes = [System.Collections.ArrayList]::new($groups)
+        $noneTreeNodes=@{}
+        foreach($group in $groups){
+            $noneTreeNodes[$group.distinguishedName] = $group
         }
-
-        #region build none-loop trees AND finalize $loopCandidates  
+        #region build none-loop trees AND remove those who are in tree from $loopCandidates  
         #$newLineFlag=0
         foreach ($group in $groups){ # enumerate thru groups to build non-loop trees
             #$newLineFlag +=1
@@ -202,15 +194,17 @@ class ForestOfGroupTrees{ # "forest in a computer graph sense. Collection of tre
             if (($group.memberof).count -eq 0){ # create a tree only if the group is not child of any other
                 $tree = [Tree]::new($group.distinguishedName)
 
-                $tree.inventory.getEnumerator().name | foreach {$loopCandidates.Remove($_)} # can't be part of a loop, remove it from candidate list
+                $tree.inventory.getEnumerator().name | foreach {$noneTreeNodes.Remove($_)} # can't be part of a loop, remove it from candidate list
                 # later consideration: add code here to merge new Tree.inventory into forest.inventory
                 # forest.count is not a simple sum of tree.count because same group can exist in different trees therefore be counted more than once
                 $this.trees += $tree
             } #creat tree ends
         } # enumerate groups ends
-        #endregion build non-loop trees
 
+        #endregion build non-loop trees
+        
         #region build loops
+
         
         # after all non-loop trees are constructed, there will be some groups left. These are the ones that in a loop nesting AND not
         # in any trees that already constructed. Leftover groups are stored in $loopCandidates
@@ -226,23 +220,27 @@ class ForestOfGroupTrees{ # "forest in a computer graph sense. Collection of tre
         # ---------------------------------------------
         
         #region At this point, $loopCandiates truly contains only loop nodes.
-        #fill in more info into $loopCandidates, weed out non-group members[]
-        $keys=$loopCandidates.Keys.clone()
-        foreach($key in $keys){
-            #$members=$loopCandidates[$key].members
-            $trimmedMembers=@()
-            foreach($member in $loopCandidates[$key].members){
-                $memberDN = $member.DN
+        # weed out non-group members[] from $noneTreeNodes.members then feed into $loopCandidates
+        foreach($group in $noneTreeNodes.Values){ # $noneTreeNodes contains all AD group objects that haven't been consumed by trees. $loopCandidates is the trimmed down $arrayLoopCandidate for Loop class constructor 
+            $groupInfo=[PSCustomObject]@{
+                domain = $domainObj.NetBIOSName
+                ID = $group.samAccountName
+                members = @()
+            }
+            foreach($memberDN in $group.member){
                 $DC = [adext]::dn2dc($memberDN)
                 $domainName=[adext]::DN2DomainNETBiosName($memberDN)
-                $mObj=get-adobject $memberDN -server $DC -Properties objectClass,samAccountName,enabled
+                $mObj=get-adobject $memberDN -server $DC -Properties objectClass,samAccountName
                 if($mObj.objectClass -eq "group"){
-                    $member.ID = $mObj.samAccountName
-                    $member.domain = $domainName
-                    $trimmedMembers+=$member
+                    $memberNode=[PSCustomObject]@{
+                        DN=$memberDN
+                        domain=$domainName
+                        ID=$mObj.samAccountName
+                    }
+                    $groupInfo.members += $memberNode
                 }
             }
-            $loopCandidates[$key].members=$trimmedMembers
+            $loopCandidates[$group.distinguishedName]=$groupInfo
         }
         #endregion fill in more AD info into $loopCandidates
 

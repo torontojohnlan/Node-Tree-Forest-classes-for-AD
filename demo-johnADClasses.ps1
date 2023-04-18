@@ -27,7 +27,7 @@ $inventoryItem=[inventoryNode]::new() #create a tmp object just for getting its 
 $header=""
 $inventoryItem.psobject.properties.name | foreach{$header+='"'+$_+'",'}
 $header -replace ",$","" | Set-Content $treeFile
-$header -replace ",$","" | Set-Content $loopFile
+($header -replace ",$","") + ',"chain"' | Set-Content $loopFile
 write-host "-------------- Process Begins ----------------"
 #endregion misc. preparation jobs before constructing a forest
 
@@ -36,7 +36,12 @@ $totalNestingCount = 0
 
 $ForestOfGroupTrees = [ForestOfGroupTrees]::new($domainName)
 #$ForestOfGroupTrees.loops|foreach {write-host $_.chainString}
-$ForestOfGroupTrees.loops|foreach{$_.inventory.Values|Export-Csv $loopFile -NoTypeInformation -Append}
+$ForestOfGroupTrees.loops|foreach{
+    $cs=$_.chainString;
+    $_.inventory.Values`
+    | select *,@{l="chain";e={$cs}}`
+    |Export-Csv $loopFile -NoTypeInformation -Append
+}
 ($ForestOfGroupTrees.loops[0].inventory[@(($ForestOfGroupTrees.loops[0].inventory.keys))[0]]).toCSVString()
 
 #endregion - How to use forest.loops
