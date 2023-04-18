@@ -1,6 +1,6 @@
-using module "./class-johnAD-v2.psm1"
-using module  ".\class-groupTree-v2.psm1"
-using module "./class-groupForestInADomain-v2.psm1"
+using module "./class-johnAD.psm1"
+using module  ".\class-groupTree.psm1"
+using module "./class-groupForestInADomain.psm1"
 
 #region demo section #1 - How to use forest.loops
 #region misc. preparation jobs before constructing a forest
