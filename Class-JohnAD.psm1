@@ -10,9 +10,11 @@ How to call this class in main script
     add-type -AssemblyName Microsoft.ActiveDirectory.Management
     . C:\scripts\PowerShell\class-JohnAD.ps1
 
+###############  [IMPORTANT] !!!!  ################ 
 Before call this class
     Specify your forest name in contructor where it defines forests as private member
     Specify DCs that should be used where some DCs may behind firewall ($DCsForDomainThatBehindFirewall)
+####################################################
 
 This class does 3 things
     1. populating DC-domain mapping table
