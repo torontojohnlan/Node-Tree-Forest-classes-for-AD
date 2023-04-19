@@ -5,10 +5,7 @@ Many aspects of this class is around the fact that some DCs may be behind firewa
 the need to hardcode particular DCs for any get-ad* cmdlets
 
 How to call this class in main script
-
-    import-module activedirectory
-    add-type -AssemblyName Microsoft.ActiveDirectory.Management
-    . C:\scripts\PowerShell\class-JohnAD.ps1
+    Using module path\class-JohnAD.ps1
 
 ###############  [IMPORTANT] !!!!  ################ 
 Before call this class
