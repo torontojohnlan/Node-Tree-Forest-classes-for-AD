@@ -91,7 +91,8 @@ class ADext{
             write-verbose ("{0}`tprocessing $domainName" -f $level)
             try {$do=get-addomain $domainName -server $domainName -ErrorAction SilentlyContinue}
             catch{
-                write-host "[Warning]: $domainName,skipped" -foregroundcolor yellow
+                write-host "[Warning]: Failed to read domain $domainName,skipped" -foregroundcolor yellow
+		write-host "@get-DomainSIDRecursively | {0}" -f ((get-PSCallStack).location -join " | ")
                 return
                 }
             if (-not [ADext]::domainSIDs.ContainsKey($do.domainSID.value)){[ADext]::domainSIDs.add($do.domainSID.value, $do.dnsroot)}
