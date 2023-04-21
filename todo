@@ -1,0 +1,1 @@
+In [tree]::populateMembers,for memberType='group' skip default AD groups such as "domain users", "authenticated users", "domain computers". No point of processing such groups
